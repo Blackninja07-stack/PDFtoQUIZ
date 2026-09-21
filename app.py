@@ -127,7 +127,7 @@ if uploaded_file is not None:
             try:
                 # Direct API Call using Groq client for Llama 3.3
                 response = client.chat.completions.create(
-                    model='llama3-70b-8192',
+                    model='qwen/qwen3.8-27b',
                     messages=[
                         {"role": "system", "content": system_instruction},
                         {"role": "user", "content": f"Source Text Material:\n{pdf_text[:15000]}"}
