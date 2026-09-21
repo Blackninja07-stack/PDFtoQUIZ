@@ -128,7 +128,7 @@ if uploaded_file is not None:
             
             try:
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.6-flash',
                     contents=f"Source Text Material:\n{pdf_text[:20000]}",
                     config=types.GenerateContentConfig(
                         system_instruction=system_instruction,
