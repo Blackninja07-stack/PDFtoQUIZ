@@ -2,31 +2,31 @@ import streamlit as st
 import pypdf
 import json
 import os
-from google import genai
-from google.genai import types
+from groq import Groq
 
-# 1. Page Configuration (Responsive Mobile & Desktop Design)
+# 1. Page Configuration (Updated to PDFtoQUIZ)
 st.set_page_config(
-    page_title="MedQuiz AI - NEET PG / INI-CET Generator",
+    page_title="PDFtoQUIZ - Professional Exam Generator",
     page_icon="🩺",
     layout="centered"
 )
 
-st.title("🩺 MedQuiz AI Generator")
-st.write("Upload high-yield PDFs to generate structured, competitive clinical vignettes.")
+# 2. Main Visual Titles (Updated to medquiz)
+st.title("🩺 medquiz")
+st.write("Upload high-yield PDFs to generate structured, competitive clinical vignettes via PDFtoQUIZ.")
 
-# 2. Setup API Key Securely
+# 3. Setup API Key Securely
 st.sidebar.header("Configuration")
-api_key = st.sidebar.text_input("Enter Gemini API Key", type="password")
+api_key = st.sidebar.text_input("Enter Groq API Key", type="password")
 
 if not api_key:
-    st.info("Please enter your Gemini API Key in the sidebar to begin.")
+    st.info("Please enter your Groq API Key in the sidebar to begin.")
     st.stop()
 
-# Initialize the official Gemini Client
-client = genai.Client(api_key=api_key)
+# Initialize the official Groq Client
+client = Groq(api_key=api_key)
 
-# 3. PDF Text Extraction Function with Range Control
+# 4. PDF Text Extraction Function with Range Control
 def extract_text_from_pdf(uploaded_file, extraction_mode, start_pg=1, end_pg=1):
     reader = pypdf.PdfReader(uploaded_file)
     total_pages = len(reader.pages)
@@ -46,31 +46,29 @@ def extract_text_from_pdf(uploaded_file, extraction_mode, start_pg=1, end_pg=1):
             
     return text, total_pages
 
-# 4. NEW Function to Generate an Offline Text File Report
+# 5. Function to Generate an Offline Text File Report
 def generate_text_report(quiz_data):
-    report = "🩺 MEDQUIZ AI - NEET PG / INI-CET EXAM SHEET\n"
+    report = "🩺 PDFtoQUIZ - NEET PG / INI-CET EXAM SHEET (medquiz)\n"
     report += "="*50 + "\n\n"
     
-    # Section A: Questions
     report += "--- SECTION A: QUESTIONS ---\n\n"
     for idx, item in enumerate(quiz_data):
         report += f"Q{idx + 1}. {item['question']}\n"
         for o_idx, opt in enumerate(item['options']):
-            letter = chr(65 + o_idx) # Converts 0, 1, 2, 3 to A, B, C, D
+            letter = chr(65 + o_idx)
             report += f"   [{letter}] {opt}\n"
         report += "\n"
         
-    # Section B: Answer Key & Explanations
     report += "\n--- SECTION B: ANSWER KEY & RATIONALES ---\n\n"
     for idx, item in enumerate(quiz_data):
-        correct_letter = chr(66 + item['correct_index'] - 1)
+        correct_letter = chr(65 + item['correct_index'])
         report += f"Q{idx + 1} Correct Answer: [{correct_letter}]\n"
         report += f"Clinical Rationale: {item['rationale']}\n"
         report += "-"*30 + "\n\n"
         
     return report
 
-# 5. App Layout & File Uploader
+# 6. App Layout & File Uploader
 uploaded_file = st.file_uploader("Upload your Medical PDF notes / chapters", type=["pdf"])
 
 if uploaded_file is not None:
@@ -106,7 +104,7 @@ if uploaded_file is not None:
             st.error("No text could be extracted from the selected pages.")
             st.stop()
             
-        with st.spinner("Crafting competitive clinical vignettes..."):
+        with st.spinner("Crafting competitive clinical vignettes via Llama 3.3..."):
             system_instruction = f"""
             You are an expert medical professor designing high-yield multiple-choice questions specifically for competitive exams like NEET PG and INI-CET. 
             Create exactly {num_questions} questions based strictly on the content extracted from the source material.
@@ -115,7 +113,7 @@ if uploaded_file is not None:
             3. Specify the exact zero-based index of the correct option (0 to 3).
             4. Provide a thorough clinical rationale analyzing why the correct option is true and why distractors are incorrect.
             
-            Respond with a valid JSON array matching this exact schema layout without wrapping it in markdown symbols:
+            Return ONLY a raw JSON array matching this exact schema layout without any markdown wrappers:
             [
               {{
                 "question": "Clinical case description...",
@@ -127,34 +125,43 @@ if uploaded_file is not None:
             """
             
             try:
-                response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=f"Source Text Material:\n{pdf_text[:20000]}",
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.2,
-                        response_mime_type="application/json"
-                    )
+                # Direct API Call using Groq client for Llama 3.3
+                response = client.chat.completions.create(
+                    model='llama-3.3-70b-versatile',
+                    messages=[
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": f"Source Text Material:\n{pdf_text[:15000]}"}
+                    ],
+                    temperature=0.2,
+                    response_format={"type": "json_object"}
                 )
                 
-                st.session_state.quiz_data = json.loads(response.text)
+                # Check if response payload is nested inside an array or dictionary key
+                parsed_response = json.loads(response.choices.message.content)
+                if isinstance(parsed_response, dict) and "questions" in parsed_response:
+                    st.session_state.quiz_data = parsed_response["questions"]
+                elif isinstance(parsed_response, dict) and len(parsed_response.keys()) == 1:
+                    first_key = list(parsed_response.keys())[0]
+                    st.session_state.quiz_data = parsed_response[first_key]
+                else:
+                    st.session_state.quiz_data = parsed_response
+                    
                 st.session_state.user_answers = {}
                 st.session_state.submitted = False
                 
             except Exception as e:
                 st.error(f"Failed to generate questions: {e}")
 
-# 6. Render the Quiz Interface
-if "quiz_data" in st.session_state:
+# 7. Render the Quiz Interface
+if "quiz_data" in st.session_state and isinstance(st.session_state.quiz_data, list):
     st.write("---")
     st.header("📋 Examination Sheet")
     
-    # Export option made available immediately upon generation
     quiz_txt_content = generate_text_report(st.session_state.quiz_data)
     st.download_button(
         label="📥 Download Quiz and Answer Key (.txt)",
         data=quiz_txt_content,
-        file_name="medquiz_assessment.txt",
+        file_name="PDFtoQUIZ_assessment.txt",
         mime="text/plain"
     )
     st.write("")
@@ -174,26 +181,27 @@ if "quiz_data" in st.session_state:
     if st.button("Submit Assessment"):
         st.session_state.submitted = True
 
-    # 7. Evaluation Logic Output
-    if st.session_state.get('submitted', False):
+# 8. Evaluation Logic Output
+if st.session_state.get('submitted', False) and "quiz_data" in st.session_state:
+    st.write("---")
+    st.header("📊 Performance Breakdown")
+    
+    score = 0
+    total = len(st.session_state.quiz_data)
+    
+    for idx, item in enumerate(st.session_state.quiz_data):
+        correct_ans = item['options'][item['correct_index']]
+        user_ans = st.session_state.user_answers.get(idx)
+        
+        st.markdown(f"#### Q{idx + 1}")
+        if user_ans == correct_ans:
+            st.success(f"Correct! Selected: {user_ans}")
+            score += 1
+        else:
+            st.error(f"Incorrect. Selected: {user_ans} | Answer Key: {correct_ans}")
+        
+        st.info(f"**Clinical Rationale:** {item['rationale']}")
         st.write("---")
-        st.header("📊 Performance Breakdown")
         
-        score = 0
-        total = len(st.session_state.quiz_data)
-        
-        for idx, item in enumerate(st.session_state.quiz_data):
-            correct_ans = item['options'][item['correct_index']]
-            user_ans = st.session_state.user_answers.get(idx)
-            
-            st.markdown(f"#### Q{idx + 1}")
-            if user_ans == correct_ans:
-                st.success(f"Correct! Selected: {user_ans}")
-                score += 1
-            else:
-                st.error(f"Incorrect. Selected: {user_ans} | Answer Key: {correct_ans}")
-            
-            st.info(f"**Clinical Rationale:** {item['rationale']}")
-            st.write("---")
-            
-        st.metric(label="Your Exam Score", value=f"{score} / {total}")
+    st.metric(label="Your Exam Score", value=f"{score} / {total}")
+
