@@ -3,6 +3,7 @@ import pypdf
 import json
 import os
 import math
+import time  # NEW: Added for rate-limit delay tracking
 from groq import Groq
 
 # 1. Page Configuration (Updated to PDFtoQUIZ)
@@ -105,8 +106,8 @@ if uploaded_file is not None:
             st.error("No text could be extracted from the selected pages.")
             st.stop()
             
-        # --- BATCH SYSTEM INTEGRATION ---
-        BATCH_SIZE = 5
+        # --- FIXED BATCH PARAMETERS TO PREVENT 429 RATE LIMITS ---
+        BATCH_SIZE = 2  # Reduced from 5 to stay under the 1000 OTPM ceiling
         total_batches = math.ceil(num_questions / BATCH_SIZE)
         all_generated_questions = []
         
@@ -114,7 +115,6 @@ if uploaded_file is not None:
         status_text = st.empty()
         
         for batch_idx in range(total_batches):
-            # Calculate how many questions to generate in this specific batch iteration
             current_batch_count = BATCH_SIZE if (batch_idx < total_batches - 1) else (num_questions - (batch_idx * BATCH_SIZE))
             
             status_text.write(f"Crafting batch {batch_idx + 1} of {total_batches} ({current_batch_count} vignettes)...")
@@ -163,6 +163,10 @@ if uploaded_file is not None:
                     all_generated_questions.extend(batch_q)
                 else:
                     all_generated_questions.append(batch_q)
+                    
+                # NEW: Add a 2-second rate-limiting window cooldown between loops
+                if batch_idx < total_batches - 1:
+                    time.sleep(2.0)
                     
             except Exception as e:
                 st.error(f"Failed to generate batch {batch_idx + 1}: {e}")
