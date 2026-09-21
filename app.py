@@ -149,7 +149,7 @@ if uploaded_file is not None:
                     response_format={"type": "json_object"}
                 )
                 
-                parsed_response = json.loads(response.choices.message.content)
+                parsed_response = json.loads(response.choices[0].message.content)
                 
                 if isinstance(parsed_response, dict) and "questions" in parsed_response:
                     batch_q = parsed_response["questions"]
