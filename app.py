@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # 2. Main Visual Titles (Updated to medquiz)
-st.title("🩺 medquiz")
+st.title("🩺 PDFtoQUIZ & medquiz")
 st.write("Upload high-yield PDFs to generate structured, competitive clinical vignettes via PDFtoQUIZ.")
 
 # 3. Setup API Key Securely
@@ -127,7 +127,7 @@ if uploaded_file is not None:
             try:
                 # Direct API Call using Groq client for Llama 3.3
                 response = client.chat.completions.create(
-                    model='llama-3.3-70b-versatile',
+                    model='llama3-70b-8192',
                     messages=[
                         {"role": "system", "content": system_instruction},
                         {"role": "user", "content": f"Source Text Material:\n{pdf_text[:15000]}"}
