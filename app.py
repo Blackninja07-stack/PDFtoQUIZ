@@ -94,7 +94,7 @@ if uploaded_file is not None:
         with col2:
             end_page = st.number_input("End Page", min_value=start_page, max_value=max_pages, value=min(start_page + 5, max_pages))
             
-    num_questions = st.slider("Number of Questions to Generate", min_value=3, max_value=10, value=5)
+    num_questions = st.slider("Number of Questions to Generate", min_value=3, max_value=40, value=5)
     
     if st.button("Generate NEET PG / INI-CET Pattern Quiz 🚀"):
         with st.spinner("Extracting text and analyzing medical concepts..."):
