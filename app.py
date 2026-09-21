@@ -137,7 +137,7 @@ if uploaded_file is not None:
                 )
                 
                 # Check if response payload is nested inside an array or dictionary key
-                parsed_response = json.loads(response.choices.message.content)
+                parsed_response = json.loads(response.choices[0].message.content)
                 if isinstance(parsed_response, dict) and "questions" in parsed_response:
                     st.session_state.quiz_data = parsed_response["questions"]
                 elif isinstance(parsed_response, dict) and len(parsed_response.keys()) == 1:
